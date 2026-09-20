@@ -1,0 +1,55 @@
+name: Build Atualizadoff
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        uses: Randomblock1/theos-action@v1
+        with:
+          theos-dir: ${{ runner.temp }}/theos
+
+      - name: Extract project ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          test -n "$ZIP_FILE" || { echo 'Nenhum ZIP de projeto foi encontrado na raiz.'; exit 1; }
+          rm -rf extracted build-project
+          mkdir -p extracted build-project
+          unzip -q "$ZIP_FILE" -d extracted
+          SOURCE_DIR="$(find extracted -type f -name Makefile -printf '%h\n' -quit)"
+          test -n "$SOURCE_DIR" || { echo 'Makefile não encontrado dentro do ZIP.'; find extracted -maxdepth 3 -type f | head -100; exit 1; }
+          cp -a "$SOURCE_DIR"/. build-project/
+          PROJECT_DIR="$GITHUB_WORKSPACE/build-project"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Projeto copiado para caminho compatível com Theos: $PROJECT_DIR"
+
+      - name: Build rootless Debian package
+        shell: bash
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          make clean package THEOS="$THEOS" FINALPACKAGE=1 DEBUG=0 IGNORE_WARNINGS=1
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: atualizadoff-rootless-package
+          path: build-project/packages/*.deb
+          if-no-files-found: error
+          retention-days: 14

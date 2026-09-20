@@ -37,6 +37,26 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Projeto copiado para caminho compatível com Theos: $PROJECT_DIR"
 
+      - name: Fix LoadView Objective-C++ closure
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ github.workspace }}/build-project
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
+          text = path.read_text()
+          old = "            });\n        });\n    });\n}\n\n__attribute__"
+          new = "            });\n        }];\n    });\n}\n\n__attribute__"
+          if old not in text:
+              raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")
+          path.write_text(text.replace(old, new, 1))
+          print(f"Correção aplicada em {path}")
+          PY
+
       - name: Build rootless Debian package
         shell: bash
         env:

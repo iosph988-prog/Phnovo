@@ -53,30 +53,31 @@ jobs:
           end = text.find("__attribute__((constructor))", start)
           if start < 0 or end < 0:
               raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")
-          block = '''static void didFinishLaunching(CFNotificationCenterRef center,
-                               void *observer,
-                               CFStringRef name,
-                               const void *object,
-                               CFDictionaryRef info)
-{
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-        UIWindow *window = UIApplication.sharedApplication.keyWindow;
-        if (!window && UIApplication.sharedApplication.windows.count > 0) {
-            window = UIApplication.sharedApplication.windows.firstObject;
-        }
-        [LicenseGate presentForWindow:window success:^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                extraInfo = [MenuLoad new];
-                [extraInfo initTapGes];
-                pthread_t hacks;
-                pthread_create(&hacks, NULL, hack_thread, NULL);
-            });
-        }];
-    });
-}
-
-'''
+          block = "\n".join([
+              "static void didFinishLaunching(CFNotificationCenterRef center,",
+              "                               void *observer,",
+              "                               CFStringRef name,",
+              "                               const void *object,",
+              "                               CFDictionaryRef info)",
+              "{",
+              "    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)),",
+              "                   dispatch_get_main_queue(), ^{",
+              "        UIWindow *window = UIApplication.sharedApplication.keyWindow;",
+              "        if (!window && UIApplication.sharedApplication.windows.count > 0) {",
+              "            window = UIApplication.sharedApplication.windows.firstObject;",
+              "        }",
+              "        [LicenseGate presentForWindow:window success:^{",
+              "            dispatch_async(dispatch_get_main_queue(), ^{",
+              "                extraInfo = [MenuLoad new];",
+              "                [extraInfo initTapGes];",
+              "                pthread_t hacks;",
+              "                pthread_create(&hacks, NULL, hack_thread, NULL);",
+              "            });",
+              "        }];",
+              "    });",
+              "}",
+              "",
+          ])
           path.write_text(text[:start] + block + text[end:])
           print(f"Correção aplicada em {path}")
           PY

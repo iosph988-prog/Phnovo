@@ -48,14 +48,14 @@ jobs:
           from pathlib import Path
 
           path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
-          text = path.read_text()
-          start = text.find("[LicenseGate presentForWindow:")
-          marker = "\n        });\n    });\n}"
-          end = text.find(marker, start)
-          if start < 0 or end < 0:
+          lines = path.read_text().splitlines(keepends=True)
+          start = next((i for i, line in enumerate(lines) if "[LicenseGate presentForWindow:" in line), -1)
+          target = next((i for i in range(start, len(lines))
+                         if lines[i].startswith("        })") and lines[i].strip() == "});"), -1)
+          if start < 0 or target < 0:
               raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")
-          text = text[:end] + "\n        }];\n    });\n}" + text[end + len(marker):]
-          path.write_text(text)
+          lines[target] = lines[target].replace("});", "}];", 1)
+          path.write_text("".join(lines))
           print(f"Correção aplicada em {path}")
           PY
 

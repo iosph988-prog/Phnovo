@@ -49,11 +49,13 @@ jobs:
 
           path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
           text = path.read_text()
-          old = "            });\n        });\n    });\n}\n\n__attribute__"
-          new = "            });\n        }];\n    });\n}\n\n__attribute__"
-          if old not in text:
+          start = text.find("[LicenseGate presentForWindow:")
+          marker = "\n        });\n    });\n}"
+          end = text.find(marker, start)
+          if start < 0 or end < 0:
               raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")
-          path.write_text(text.replace(old, new, 1))
+          text = text[:end] + "\n        }];\n    });\n}" + text[end + len(marker):]
+          path.write_text(text)
           print(f"Correção aplicada em {path}")
           PY
 

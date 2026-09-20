@@ -49,7 +49,7 @@ jobs:
 
           path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
           text = path.read_text()
-          start = text.find("static void didFinishLaunching")
+          start = text.rfind("static void didFinishLaunching")
           end = text.find("__attribute__((constructor))", start)
           if start < 0 or end < 0:
               raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")

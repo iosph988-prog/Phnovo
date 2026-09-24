@@ -48,6 +48,9 @@ jobs:
           from pathlib import Path
 
           path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
+          if not path.exists():
+              print(f"Nenhum LoadView.mm encontrado em {path}; correção não necessária")
+              raise SystemExit(0)
           text = path.read_text()
           start = text.rfind("static void didFinishLaunching")
           end = text.find("__attribute__((constructor))", start)

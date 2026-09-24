@@ -52,6 +52,9 @@ jobs:
               print(f"Nenhum LoadView.mm encontrado em {path}; correção não necessária")
               raise SystemExit(0)
           text = path.read_text()
+          if "LicenseGate" not in text:
+              print(f"LicenseGate não usado em {path}; correção não necessária")
+              raise SystemExit(0)
           start = text.rfind("static void didFinishLaunching")
           end = text.find("__attribute__((constructor))", start)
           if start < 0 or end < 0:

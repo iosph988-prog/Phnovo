@@ -52,7 +52,7 @@ jobs:
               print(f"Nenhum LoadView.mm encontrado em {path}; correção não necessária")
               raise SystemExit(0)
           text = path.read_text()
-          if "LicenseGate" not in text or (path.parent / "PubgLoad.mm").exists():
+          if "LicenseGate" not in text or (path.parent / "PubgLoad.mm").exists() or "NovosrcUIOnly" in text:
               print(f"LoadView UIKit/API detectado em {path}; correção antiga não necessária")
               raise SystemExit(0)
           start = text.rfind("static void didFinishLaunching")

@@ -1,17 +1,22 @@
-name: Build Atualizadoff
+name: Build KeyBypass
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Build Theos tweak
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,82 +30,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
-          test -n "$ZIP_FILE" || { echo 'Nenhum ZIP de projeto foi encontrado na raiz.'; exit 1; }
+
+          zip_file="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          if [[ -z "$zip_file" ]]; then
+            echo 'Nenhum arquivo .zip foi encontrado na raiz do repositório.' >&2
+            exit 1
+          fi
+
           rm -rf extracted build-project
           mkdir -p extracted build-project
-          unzip -q "$ZIP_FILE" -d extracted
-          SOURCE_DIR="$(find extracted -type f -name Makefile -printf '%h\n' -quit)"
-          test -n "$SOURCE_DIR" || { echo 'Makefile não encontrado dentro do ZIP.'; find extracted -maxdepth 3 -type f | head -100; exit 1; }
-          cp -a "$SOURCE_DIR"/. build-project/
-          PROJECT_DIR="$GITHUB_WORKSPACE/build-project"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Projeto copiado para caminho compatível com Theos: $PROJECT_DIR"
+          unzip -q "$zip_file" -d extracted
 
-      - name: Fix LoadView Objective-C++ closure
-        shell: bash
-        env:
-          PROJECT_DIR: ${{ github.workspace }}/build-project
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
+          makefile="$(find extracted -type f -name Makefile -print -quit)"
+          if [[ -z "$makefile" ]]; then
+            echo 'Nenhum Makefile foi encontrado dentro do ZIP.' >&2
+            find extracted -maxdepth 4 -type f -print
+            exit 1
+          fi
 
-          path = Path(os.environ["PROJECT_DIR"]) / "Esp" / "LoadView.mm"
-          if not path.exists():
-              print(f"Nenhum LoadView.mm encontrado em {path}; correção não necessária")
-              raise SystemExit(0)
-          text = path.read_text()
-          if "LicenseGate" not in text or (path.parent / "PubgLoad.mm").exists() or "NovosrcUIOnly" in text:
-              print(f"LoadView UIKit/API detectado em {path}; correção antiga não necessária")
-              raise SystemExit(0)
-          start = text.rfind("static void didFinishLaunching")
-          end = text.find("__attribute__((constructor))", start)
-          if start < 0 or end < 0:
-              raise SystemExit("Padrão de LoadView.mm não encontrado; nenhuma correção aplicada")
-          block = "\n".join([
-              "static void didFinishLaunching(CFNotificationCenterRef center,",
-              "                               void *observer,",
-              "                               CFStringRef name,",
-              "                               const void *object,",
-              "                               CFDictionaryRef info)",
-              "{",
-              "    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)),",
-              "                   dispatch_get_main_queue(), ^{",
-              "        UIWindow *window = UIApplication.sharedApplication.keyWindow;",
-              "        if (!window && UIApplication.sharedApplication.windows.count > 0) {",
-              "            window = UIApplication.sharedApplication.windows.firstObject;",
-              "        }",
-              "        [LicenseGate presentForWindow:window success:^{",
-              "            dispatch_async(dispatch_get_main_queue(), ^{",
-              "                extraInfo = [MenuLoad new];",
-              "                [extraInfo initTapGes];",
-              "                pthread_t hacks;",
-              "                pthread_create(&hacks, NULL, hack_thread, NULL);",
-              "            });",
-              "        }];",
-              "    });",
-              "}",
-              "",
-          ])
-          path.write_text(text[:start] + block + text[end:])
-          print(f"Correção aplicada em {path}")
-          PY
+          source_dir="$(dirname "$makefile")"
+          cp -a "$source_dir"/. build-project/
+          echo "Projeto encontrado em: $source_dir"
+          find build-project -maxdepth 2 -type f -print
 
-      - name: Build rootless Debian package
+      - name: Build Debian package
         shell: bash
         env:
           THEOS: ${{ runner.temp }}/theos
         run: |
           set -euo pipefail
-          cd "$PROJECT_DIR"
-          make clean package THEOS="$THEOS" FINALPACKAGE=1 DEBUG=0 IGNORE_WARNINGS=1
+          cd "$GITHUB_WORKSPACE/build-project"
+          make clean package FINALPACKAGE=1 DEBUG=0 THEOS="$THEOS"
 
       - name: Upload Debian package
         uses: actions/upload-artifact@v4
         with:
-          name: atualizadoff-rootless-package
+          name: keybypass-deb
           path: build-project/packages/*.deb
           if-no-files-found: error
           retention-days: 14
